@@ -1,0 +1,167 @@
+// This is your Prisma schema file,
+// learn more about it in the docs: https://pris.ly/d/prisma-schema
+
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "postgresql"
+  url      = env("DATABASE_URL")
+}
+
+model User {
+  id            String    @id @default(uuid())
+  email         String    @unique
+  passwordHash  String    @map("password_hash")
+  name          String?
+  createdAt     DateTime  @default(now()) @map("created_at")
+  updatedAt     DateTime  @updatedAt @map("updated_at")
+
+  alertSettings    AlertSetting?
+  shopifySettings  ShopifySetting?
+
+  @@map("users")
+}
+
+model Product {
+  id                    String    @id @default(uuid())
+  sku                   String    @unique
+  name                  String
+  category              String?
+  purchasePrice         Decimal?  @map("purchase_price") @db.Decimal(10, 2)
+  sellingPrice          Decimal?  @map("selling_price") @db.Decimal(10, 2)
+  predictedWeeklySales  Int       @default(0) @map("predicted_weekly_sales")
+  supplierId            String?   @map("supplier_id")
+  shopifyProductId      BigInt?   @unique @map("shopify_product_id")
+  shopifyVariantId      BigInt?   @map("shopify_variant_id")
+  createdAt             DateTime  @default(now()) @map("created_at")
+  updatedAt             DateTime  @updatedAt @map("updated_at")
+
+  supplier          Supplier?          @relation(fields: [supplierId], references: [id], onDelete: SetNull)
+  inventory         Inventory?
+  salesHistory      SalesHistory[]
+  inventoryHistory  InventoryHistory[]
+  purchaseOrders    PurchaseOrder[]
+
+  @@map("products")
+}
+
+model Inventory {
+  id              String    @id @default(uuid())
+  productId       String    @unique @map("product_id")
+  currentQuantity Int       @default(0) @map("current_quantity")
+  lastSyncedAt    DateTime? @map("last_synced_at")
+  createdAt       DateTime  @default(now()) @map("created_at")
+  updatedAt       DateTime  @updatedAt @map("updated_at")
+
+  product Product @relation(fields: [productId], references: [id], onDelete: Cascade)
+
+  @@map("inventory")
+}
+
+model SalesHistory {
+  id             String   @id @default(uuid())
+  productId      String   @map("product_id")
+  soldDate       DateTime @map("sold_date") @db.Date
+  soldQuantity    Int      @map("sold_quantity")
+  shopifyOrderId BigInt?  @map("shopify_order_id")
+  createdAt      DateTime @default(now()) @map("created_at")
+
+  product Product @relation(fields: [productId], references: [id], onDelete: Cascade)
+
+  @@index([productId, soldDate])
+  @@map("sales_history")
+}
+
+model InventoryHistory {
+  id              String   @id @default(uuid())
+  productId       String   @map("product_id")
+  changeDate      DateTime @map("change_date")
+  previousQuantity Int     @map("previous_quantity")
+  newQuantity     Int     @map("new_quantity")
+  changeType      String   @map("change_type") // 入荷/出荷/調整/同期
+  notes           String?  @db.Text
+  createdAt       DateTime @default(now()) @map("created_at")
+
+  product Product @relation(fields: [productId], references: [id], onDelete: Cascade)
+
+  @@index([productId, changeDate])
+  @@map("inventory_history")
+}
+
+model Supplier {
+  id            String    @id @default(uuid())
+  name          String
+  contactPerson String?  @map("contact_person")
+  email         String?
+  phone         String?
+  address       String?   @db.Text
+  leadTimeDays  Int?      @default(7) @map("lead_time_days") // リードタイム（日数）
+  createdAt     DateTime  @default(now()) @map("created_at")
+  updatedAt     DateTime  @updatedAt @map("updated_at")
+
+  products       Product[]
+  purchaseOrders PurchaseOrder[]
+
+  @@map("suppliers")
+}
+
+model PurchaseOrder {
+  id                  String    @id @default(uuid())
+  supplierId          String    @map("supplier_id")
+  productId           String    @map("product_id")
+  orderDate           DateTime  @map("order_date") @db.Date
+  quantity            Int
+  unitPrice           Decimal?  @map("unit_price") @db.Decimal(10, 2)
+  status              String    // 発注済み/入荷済み/キャンセル
+  expectedDeliveryDate DateTime? @map("expected_delivery_date") @db.Date
+  actualDeliveryDate  DateTime? @map("actual_delivery_date") @db.Date
+  notes               String?   @db.Text
+  createdAt           DateTime  @default(now()) @map("created_at")
+  updatedAt           DateTime  @updatedAt @map("updated_at")
+
+  supplier Supplier @relation(fields: [supplierId], references: [id], onDelete: Cascade)
+  product  Product  @relation(fields: [productId], references: [id], onDelete: Cascade)
+
+  @@index([supplierId, orderDate])
+  @@index([productId, orderDate])
+  @@map("purchase_orders")
+}
+
+model AlertSetting {
+  id                  String   @id @default(uuid())
+  userId              String   @unique @map("user_id")
+  alertThresholdWeeks Int      @default(2) @map("alert_threshold_weeks")
+  emailNotification   Boolean  @default(false) @map("email_notification")
+  emailAddress        String?  @map("email_address")
+  lineNotification    Boolean  @default(false) @map("line_notification")
+  lineWebhookUrl      String?  @map("line_webhook_url")
+  slackNotification   Boolean  @default(false) @map("slack_notification")
+  slackWebhookUrl     String?  @map("slack_webhook_url")
+  createdAt           DateTime @default(now()) @map("created_at")
+  updatedAt           DateTime @updatedAt @map("updated_at")
+
+  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@map("alert_settings")
+}
+
+model ShopifySetting {
+  id            String    @id @default(uuid())
+  userId        String    @unique @map("user_id")
+  storeName     String    @map("store_name")
+  apiKey        String    @map("api_key") // 暗号化して保存
+  apiSecret     String    @map("api_secret") // 暗号化して保存
+  accessToken   String?   @map("access_token") @db.Text // 暗号化して保存
+  webhookSecret String?   @map("webhook_secret")
+  syncEnabled   Boolean   @default(true) @map("sync_enabled")
+  lastSyncAt    DateTime? @map("last_sync_at")
+  createdAt     DateTime  @default(now()) @map("created_at")
+  updatedAt     DateTime  @updatedAt @map("updated_at")
+
+  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@map("shopify_settings")
+}
+
