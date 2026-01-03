@@ -4,9 +4,15 @@ import CredentialsProvider from "next-auth/providers/credentials"
 import { prisma } from "./prisma"
 import bcrypt from "bcryptjs"
 
+// 環境変数の確認
+const secret = process.env.AUTH_SECRET || process.env.NEXTAUTH_SECRET
+if (!secret) {
+  console.error("⚠️ AUTH_SECRET or NEXTAUTH_SECRET is not set!")
+}
+
 export const authConfig: NextAuthConfig = {
   trustHost: true, // Vercelなどのホスティング環境で必要
-  secret: process.env.AUTH_SECRET || process.env.NEXTAUTH_SECRET, // NextAuth.js v5ではAUTH_SECRETを優先
+  secret: secret, // NextAuth.js v5ではAUTH_SECRETを優先
   providers: [
     CredentialsProvider({
       name: "Credentials",
