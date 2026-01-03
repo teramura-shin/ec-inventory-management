@@ -5,6 +5,7 @@ import { prisma } from "./prisma"
 import bcrypt from "bcryptjs"
 
 export const authConfig: NextAuthConfig = {
+  trustHost: true, // Vercelなどのホスティング環境で必要
   providers: [
     CredentialsProvider({
       name: "Credentials",
