@@ -20,6 +20,14 @@ function getSecret(): string | undefined {
   if (globalEnv?.AUTH_SECRET) return globalEnv.AUTH_SECRET
   if (globalEnv?.NEXTAUTH_SECRET) return globalEnv.NEXTAUTH_SECRET
   
+  // 方法4: Vercelの環境変数が読み込まれない場合の一時的な対応
+  // 注意: 本番環境では環境変数を使用すべきですが、デバッグ用に一時的に設定
+  // 本番環境で動作確認後、この行を削除してください
+  if (process.env.VERCEL && !process.env.AUTH_SECRET && !process.env.NEXTAUTH_SECRET) {
+    console.warn("⚠️ Using fallback secret - this should be replaced with environment variable!")
+    return "8HsIGFJArhL6Un1rYLLM5E8m+fSsfv2gE+FCKO+w0NU="
+  }
+  
   return undefined
 }
 
