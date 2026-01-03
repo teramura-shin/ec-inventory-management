@@ -5,20 +5,31 @@ import { prisma } from "./prisma"
 import bcrypt from "bcryptjs"
 
 // 環境変数の確認（デバッグ用）
-const authSecret = process.env.AUTH_SECRET
-const nextAuthSecret = process.env.NEXTAUTH_SECRET
+// Next.jsでは、環境変数はビルド時とランタイムで異なる方法で読み込まれる
+const authSecret = process.env.AUTH_SECRET || process.env['AUTH_SECRET']
+const nextAuthSecret = process.env.NEXTAUTH_SECRET || process.env['NEXTAUTH_SECRET']
 const secret = authSecret || nextAuthSecret
 
-console.log("🔍 Environment variables check:")
-console.log("  AUTH_SECRET:", authSecret ? "✅ Set" : "❌ Not set")
-console.log("  NEXTAUTH_SECRET:", nextAuthSecret ? "✅ Set" : "❌ Not set")
-console.log("  Final secret:", secret ? "✅ Available" : "❌ Missing")
-
-if (!secret) {
-  console.error("⚠️ AUTH_SECRET or NEXTAUTH_SECRET is not set!")
-  console.error("Available env vars:", Object.keys(process.env).filter(k => 
-    k.includes('AUTH') || k.includes('NEXTAUTH') || k.includes('SECRET')
-  ))
+// デバッグログ（本番環境でも確認できるように）
+if (typeof window === 'undefined') {
+  console.log("🔍 [SERVER] Environment variables check:")
+  console.log("  AUTH_SECRET:", authSecret ? `✅ Set (length: ${authSecret.length})` : "❌ Not set")
+  console.log("  NEXTAUTH_SECRET:", nextAuthSecret ? `✅ Set (length: ${nextAuthSecret.length})` : "❌ Not set")
+  console.log("  Final secret:", secret ? "✅ Available" : "❌ Missing")
+  console.log("  NODE_ENV:", process.env.NODE_ENV)
+  
+  if (!secret) {
+    console.error("⚠️ AUTH_SECRET or NEXTAUTH_SECRET is not set!")
+    const relevantEnvVars = Object.keys(process.env).filter(k => 
+      k.includes('AUTH') || k.includes('NEXTAUTH') || k.includes('SECRET')
+    )
+    console.error("Available env vars with AUTH/NEXTAUTH/SECRET:", relevantEnvVars)
+    if (relevantEnvVars.length > 0) {
+      relevantEnvVars.forEach(key => {
+        console.error(`  ${key}: ${process.env[key] ? 'Set' : 'Not set'}`)
+      })
+    }
+  }
 }
 
 export const authConfig: NextAuthConfig = {
