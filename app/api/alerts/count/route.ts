@@ -3,6 +3,8 @@ import { requireAuth } from "@/lib/auth-helpers"
 import { prisma } from "@/lib/prisma"
 import { calculateWeeksUntilOut, checkAlert } from "@/lib/inventory"
 
+export const dynamic = 'force-dynamic'
+
 export async function GET(request: NextRequest) {
   try {
     const user = await requireAuth()
