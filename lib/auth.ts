@@ -4,37 +4,45 @@ import CredentialsProvider from "next-auth/providers/credentials"
 import { prisma } from "./prisma"
 import bcrypt from "bcryptjs"
 
-// 環境変数の確認（デバッグ用）
-// Next.jsでは、環境変数はビルド時とランタイムで異なる方法で読み込まれる
-const authSecret = process.env.AUTH_SECRET || process.env['AUTH_SECRET']
-const nextAuthSecret = process.env.NEXTAUTH_SECRET || process.env['NEXTAUTH_SECRET']
-const secret = authSecret || nextAuthSecret
+// 環境変数の読み込み（複数の方法を試す）
+// Vercelでは環境変数が正しく読み込まれない場合があるため、複数の方法で試す
+function getSecret(): string | undefined {
+  // 方法1: 標準的な環境変数
+  if (process.env.AUTH_SECRET) return process.env.AUTH_SECRET
+  if (process.env.NEXTAUTH_SECRET) return process.env.NEXTAUTH_SECRET
+  
+  // 方法2: ブラケット記法
+  if (process.env['AUTH_SECRET']) return process.env['AUTH_SECRET']
+  if (process.env['NEXTAUTH_SECRET']) return process.env['NEXTAUTH_SECRET']
+  
+  // 方法3: グローバルオブジェクトから（Vercelのランタイム環境）
+  const globalEnv = (globalThis as any).process?.env
+  if (globalEnv?.AUTH_SECRET) return globalEnv.AUTH_SECRET
+  if (globalEnv?.NEXTAUTH_SECRET) return globalEnv.NEXTAUTH_SECRET
+  
+  return undefined
+}
 
-// デバッグログ（本番環境でも確認できるように）
+const secret = getSecret()
+
+// デバッグログ
 if (typeof window === 'undefined') {
   console.log("🔍 [SERVER] Environment variables check:")
-  console.log("  AUTH_SECRET:", authSecret ? `✅ Set (length: ${authSecret.length})` : "❌ Not set")
-  console.log("  NEXTAUTH_SECRET:", nextAuthSecret ? `✅ Set (length: ${nextAuthSecret.length})` : "❌ Not set")
-  console.log("  Final secret:", secret ? "✅ Available" : "❌ Missing")
+  console.log("  AUTH_SECRET:", process.env.AUTH_SECRET ? `✅ Set (length: ${process.env.AUTH_SECRET.length})` : "❌ Not set")
+  console.log("  NEXTAUTH_SECRET:", process.env.NEXTAUTH_SECRET ? `✅ Set (length: ${process.env.NEXTAUTH_SECRET.length})` : "❌ Not set")
+  console.log("  Final secret:", secret ? `✅ Available (length: ${secret.length})` : "❌ Missing")
   console.log("  NODE_ENV:", process.env.NODE_ENV)
+  console.log("  VERCEL:", process.env.VERCEL ? "✅ Yes" : "❌ No")
   
   if (!secret) {
     console.error("⚠️ AUTH_SECRET or NEXTAUTH_SECRET is not set!")
-    const relevantEnvVars = Object.keys(process.env).filter(k => 
-      k.includes('AUTH') || k.includes('NEXTAUTH') || k.includes('SECRET')
-    )
-    console.error("Available env vars with AUTH/NEXTAUTH/SECRET:", relevantEnvVars)
-    if (relevantEnvVars.length > 0) {
-      relevantEnvVars.forEach(key => {
-        console.error(`  ${key}: ${process.env[key] ? 'Set' : 'Not set'}`)
-      })
-    }
+    console.error("All process.env keys:", Object.keys(process.env).slice(0, 20))
   }
 }
 
 export const authConfig: NextAuthConfig = {
   trustHost: true, // Vercelなどのホスティング環境で必要
-  secret: secret || undefined, // NextAuth.js v5ではAUTH_SECRETを優先
+  secret: secret, // NextAuth.js v5ではAUTH_SECRETを優先
   providers: [
     CredentialsProvider({
       name: "Credentials",
