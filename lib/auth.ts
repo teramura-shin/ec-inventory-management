@@ -6,6 +6,7 @@ import bcrypt from "bcryptjs"
 
 export const authConfig: NextAuthConfig = {
   trustHost: true, // Vercelなどのホスティング環境で必要
+  secret: process.env.NEXTAUTH_SECRET || process.env.AUTH_SECRET, // 環境変数からsecretを取得
   providers: [
     CredentialsProvider({
       name: "Credentials",
